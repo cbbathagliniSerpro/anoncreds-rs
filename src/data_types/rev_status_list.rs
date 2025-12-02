@@ -27,6 +27,12 @@ pub struct RevocationStatusList {
     timestamp: Option<u64>,
 }
 
+impl RevocationStatusList{
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
 impl From<&RevocationStatusList> for Option<CryptoRevocationRegistry> {
     fn from(value: &RevocationStatusList) -> Self {
         value.accum.map(From::from)

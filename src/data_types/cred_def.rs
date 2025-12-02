@@ -48,6 +48,11 @@ pub struct CredentialDefinition {
 }
 
 impl CredentialDefinition {
+    
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self)
+    }
+
     pub fn get_public_key(&self) -> Result<CredentialPublicKey, ConversionError> {
         let key = CredentialPublicKey::build_from_parts(
             &self.value.primary,

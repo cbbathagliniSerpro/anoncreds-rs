@@ -35,6 +35,12 @@ pub struct RevocationRegistryDefinitionValue {
     pub tails_location: String,
 }
 
+impl RevocationRegistryDefinition{
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RevocationRegistryDefinitionValuePublicKeys {

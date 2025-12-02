@@ -48,6 +48,11 @@ impl W3CCredential {
 }
 
 impl Schema {
+
+    pub fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self)
+    }
+
     pub(crate) fn has_case_insensitive_attribute(&self, requested_attribute: &str) -> bool {
         let requested_attribute = attr_common_view(requested_attribute);
         self.attr_names
