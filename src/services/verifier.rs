@@ -52,10 +52,8 @@ pub fn verify_presentation(
         &HashMap<RevocationRegistryDefinitionId, HashMap<u64, u64>>,
     >,
 ) -> Result<bool> {
-    trace!(
-        "verify >>> presentation: {:?}, pres_req: {:?}, schemas: {:?}, cred_defs: {:?}, rev_reg_defs: {:?} rev_status_lists: {:?}",
-        presentation, pres_req, schemas, cred_defs, rev_reg_defs, rev_status_lists
-    );
+    trace!("verify >>> presentation: {:?}, pres_req: {:?}, schemas: {:?}, cred_defs: {:?}, rev_reg_defs: {:?} rev_status_lists: {:?}",
+    presentation, pres_req, schemas, cred_defs, rev_reg_defs, rev_status_lists);
 
     // These values are from the prover and cannot be trusted
     let received_revealed_attrs: HashMap<String, Identifier> =
@@ -312,10 +310,7 @@ fn verify_revealed_attribute_values(
                 )
             })?;
         if attr_infos.values.len() != attr_names.len() {
-            error!(
-                "Proof Revealed Attr Group does not match Proof Request Attribute Group, proof request attrs: {:?}, referent: {:?}, attr_infos: {:?}",
-                pres_req.requested_attributes, attr_referent, attr_infos
-            );
+            error!("Proof Revealed Attr Group does not match Proof Request Attribute Group, proof request attrs: {:?}, referent: {:?}, attr_infos: {:?}", pres_req.requested_attributes, attr_referent, attr_infos);
             return Err(err_msg!(
                 "Proof Revealed Attr Group does not match Proof Request Attribute Group",
             ));
@@ -357,13 +352,8 @@ pub(crate) fn verify_revealed_attribute_value(
         })?;
 
     if reveal_attr_encoded != crypto_proof_encoded {
-        return Err(err_msg!(
-            ProofRejected,
-            "Encoded Values for \"{}\" are different in RequestedProof \"{}\" and CryptoProof \"{}\"",
-            attr_name,
-            reveal_attr_encoded,
-            crypto_proof_encoded
-        ));
+        return Err(err_msg!(ProofRejected,
+                "Encoded Values for \"{}\" are different in RequestedProof \"{}\" and CryptoProof \"{}\"", attr_name, reveal_attr_encoded, crypto_proof_encoded));
     }
 
     Ok(())
@@ -419,9 +409,7 @@ pub(crate) fn verify_requested_restrictions(
     if filter_tags.contains(&"issuer_id".to_owned())
         && filter_tags.contains(&"issuer_did".to_owned())
     {
-        return Err(err_msg!(
-            "Presentation request contains restriction for `issuer_id` (new) and `issuer_did` (legacy)"
-        ));
+        return Err(err_msg!("Presentation request contains restriction for `issuer_id` (new) and `issuer_did` (legacy)"));
     }
 
     // We check whether both the `schema_issuer_id` and `schema_issuer_did` are included. Since
@@ -430,9 +418,7 @@ pub(crate) fn verify_requested_restrictions(
     if filter_tags.contains(&"schema_issuer_id".to_owned())
         && filter_tags.contains(&"schema_issuer_did".to_owned())
     {
-        return Err(err_msg!(
-            "Presentation request contains both restrictions for `schema_issuer_id` (new) and `schema_issuer_did` (legacy)"
-        ));
+        return Err(err_msg!("Presentation request contains both restrictions for `schema_issuer_id` (new) and `schema_issuer_did` (legacy)"));
     }
 
     for (referent, info) in &requested_attrs {
@@ -587,26 +573,22 @@ pub(crate) fn process_operator(
     filter: &Filter,
 ) -> Result<()> {
     match restriction_op {
-        Query::Eq(tag_name, tag_value) => {
+        Query::Eq(ref tag_name, ref tag_value) => {
             process_filter(attr_value_map, tag_name, tag_value, filter).map_err(err_map!(
                 "$eq operator validation failed for tag: \"{}\", value: \"{}\"",
                 tag_name,
                 tag_value
             ))
         }
-        Query::Neq(tag_name, tag_value) => {
+        Query::Neq(ref tag_name, ref tag_value) => {
             if process_filter(attr_value_map, tag_name, tag_value, filter).is_err() {
                 Ok(())
             } else {
-                Err(err_msg!(
-                    ProofRejected,
-                    "$neq operator validation failed for tag: \"{}\", value: \"{}\". Condition was passed.",
-                    tag_name,
-                    tag_value
-                ))
+                Err(err_msg!(ProofRejected,
+                        "$neq operator validation failed for tag: \"{}\", value: \"{}\". Condition was passed.", tag_name, tag_value))
             }
         }
-        Query::In(tag_name, tag_values) => {
+        Query::In(ref tag_name, ref tag_values) => {
             let res = tag_values
                 .iter()
                 .any(|val| process_filter(attr_value_map, tag_name, val, filter).is_ok());
@@ -621,13 +603,13 @@ pub(crate) fn process_operator(
                 ))
             }
         }
-        Query::And(operators) => operators
+        Query::And(ref operators) => operators
             .iter()
             .map(|op| process_operator(attr_value_map, op, filter))
             .collect::<Result<Vec<()>>>()
             .map(|_| ())
             .map_err(err_map!("$and operator validation failed.")),
-        Query::Or(operators) => {
+        Query::Or(ref operators) => {
             let res = operators
                 .iter()
                 .any(|op| process_operator(attr_value_map, op, filter).is_ok());
@@ -640,7 +622,7 @@ pub(crate) fn process_operator(
                 ))
             }
         }
-        Query::Not(operator) => {
+        Query::Not(ref operator) => {
             if process_operator(attr_value_map, operator, filter).is_err() {
                 Ok(())
             } else {
@@ -662,7 +644,10 @@ fn process_filter(
 ) -> Result<()> {
     trace!(
         "_process_filter: attr_value_map: {:?}, tag: {}, tag_value: {}, filter: {:?}",
-        attr_value_map, tag, tag_value, filter
+        attr_value_map,
+        tag,
+        tag_value,
+        filter
     );
     match tag {
         tag_ @ "schema_id" => precess_filed(tag_, filter.schema_id.to_string(), tag_value),
@@ -779,6 +764,8 @@ fn build_revocation_registry_map(
     Ok(rev_reg_map)
 }
 
+use log::{debug, warn, error};
+
 fn check_non_revoked_interval(
     cred_def: &CredentialDefinition,
     attrs_nonrevoked_interval: Option<NonRevokedInterval>,
@@ -790,19 +777,36 @@ fn check_non_revoked_interval(
     >,
     timestamp: Option<u64>,
 ) -> Result<()> {
+    debug!("--- check_non_revoked_interval ---");
+    debug!("cred_def has revocation? {}", cred_def.value.revocation.is_some());
+    debug!("attrs_nonrevoked_interval = {:?}", attrs_nonrevoked_interval);
+    debug!("pred_nonrevoked_interval = {:?}", pred_nonrevoked_interval);
+    debug!("rev_reg_id = {:?}", rev_reg_id);
+    debug!("pres_req.non_revoked = {:?}", pres_req.non_revoked); // cuidado: pode ser None
+    debug!("timestamp = {:?}", timestamp);
+
     if cred_def.value.revocation.is_some() {
-        // Collapse to the most stringent local interval for the attributes / predicates,
-        // we can do this because there is only 1 revocation status list for this credential
-        // if it satisfies the most stringent interval, it will satisfy all intervals
         let interval = match (attrs_nonrevoked_interval, pred_nonrevoked_interval) {
-            (Some(attr), None) => Some(attr),
-            (None, Some(pred)) => Some(pred),
+            (Some(attr), None) => {
+                debug!("Using attribute-level interval: {:?}", attr);
+                Some(attr)
+            }
+            (None, Some(pred)) => {
+                debug!("Using predicate-level interval: {:?}", pred);
+                Some(pred)
+            }
             (Some(mut attr), Some(pred)) => {
+                debug!("Merging attr + pred intervals");
                 attr.compare_and_set(&pred);
                 Some(attr)
             }
-            _ => None,
+            _ => {
+                debug!("No local interval provided.");
+                None
+            }
         };
+
+        debug!("Final computed interval = {:?}", interval);
 
         let cred_nonrevoked_interval = get_requested_non_revoked_interval(
             rev_reg_id,
@@ -811,19 +815,34 @@ fn check_non_revoked_interval(
             nonrevoke_interval_override,
         );
 
+        debug!("Computed cred_nonrevoked_interval = {:?}", cred_nonrevoked_interval);
+
         if let (Some(_), Some(cred_nonrevoked_interval)) = (
             cred_def.value.revocation.as_ref(),
             cred_nonrevoked_interval.as_ref(),
         ) {
-            let timestamp = timestamp
-                .ok_or_else(|| err_msg!("Identifier timestamp not found for revocation check"))?;
+            let timestamp = timestamp.ok_or_else(|| {
+                error!("timestamp is missing for revocation check!");
+                err_msg!("Identifier timestamp not found for revocation check")
+            })?;
 
-            cred_nonrevoked_interval.is_valid(timestamp)?;
+            debug!("Checking is_valid() for timestamp {}", timestamp);
+
+            // Aqui é onde normalmente falha
+            if let Err(e) = cred_nonrevoked_interval.is_valid(timestamp) {
+                error!("❌ Revocation check failed: {:?}", e);
+                return Err(e.into());
+            }
+
+            debug!("✔️ Revocation interval valid");
+        } else {
+            debug!("Skipping revocation check: no revocation interval");
         }
     }
 
     Ok(())
 }
+
 
 pub(crate) struct CLProofVerifier<'a> {
     proof_verifier: ProofVerifier,
@@ -846,9 +865,7 @@ impl<'a> CLProofVerifier<'a> {
         >,
         rev_status_lists: Option<&'a Vec<RevocationStatusList>>,
     ) -> Result<CLProofVerifier<'a>> {
-        let mut proof_verifier = Verifier::new_proof_verifier()?;
-        // Require link secrets to be equal
-        proof_verifier.add_common_attribute("master_secret")?;
+        let proof_verifier = Verifier::new_proof_verifier()?;
         let non_credential_schema = build_non_credential_schema()?;
         let revocation_map = build_revocation_registry_map(rev_status_lists)?;
         Ok(CLProofVerifier {
