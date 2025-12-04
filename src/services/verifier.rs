@@ -764,6 +764,8 @@ fn build_revocation_registry_map(
     Ok(rev_reg_map)
 }
 
+use log::{debug, warn, error};
+
 fn check_non_revoked_interval(
     cred_def: &CredentialDefinition,
     attrs_nonrevoked_interval: Option<NonRevokedInterval>,
@@ -775,19 +777,36 @@ fn check_non_revoked_interval(
     >,
     timestamp: Option<u64>,
 ) -> Result<()> {
+    debug!("--- check_non_revoked_interval ---");
+    debug!("cred_def has revocation? {}", cred_def.value.revocation.is_some());
+    debug!("attrs_nonrevoked_interval = {:?}", attrs_nonrevoked_interval);
+    debug!("pred_nonrevoked_interval = {:?}", pred_nonrevoked_interval);
+    debug!("rev_reg_id = {:?}", rev_reg_id);
+    debug!("pres_req.non_revoked = {:?}", pres_req.non_revoked); // cuidado: pode ser None
+    debug!("timestamp = {:?}", timestamp);
+
     if cred_def.value.revocation.is_some() {
-        // Collapse to the most stringent local interval for the attributes / predicates,
-        // we can do this because there is only 1 revocation status list for this credential
-        // if it satisfies the most stringent interval, it will satisfy all intervals
         let interval = match (attrs_nonrevoked_interval, pred_nonrevoked_interval) {
-            (Some(attr), None) => Some(attr),
-            (None, Some(pred)) => Some(pred),
+            (Some(attr), None) => {
+                debug!("Using attribute-level interval: {:?}", attr);
+                Some(attr)
+            }
+            (None, Some(pred)) => {
+                debug!("Using predicate-level interval: {:?}", pred);
+                Some(pred)
+            }
             (Some(mut attr), Some(pred)) => {
+                debug!("Merging attr + pred intervals");
                 attr.compare_and_set(&pred);
                 Some(attr)
             }
-            _ => None,
+            _ => {
+                debug!("No local interval provided.");
+                None
+            }
         };
+
+        debug!("Final computed interval = {:?}", interval);
 
         let cred_nonrevoked_interval = get_requested_non_revoked_interval(
             rev_reg_id,
@@ -796,19 +815,34 @@ fn check_non_revoked_interval(
             nonrevoke_interval_override,
         );
 
+        debug!("Computed cred_nonrevoked_interval = {:?}", cred_nonrevoked_interval);
+
         if let (Some(_), Some(cred_nonrevoked_interval)) = (
             cred_def.value.revocation.as_ref(),
             cred_nonrevoked_interval.as_ref(),
         ) {
-            let timestamp = timestamp
-                .ok_or_else(|| err_msg!("Identifier timestamp not found for revocation check"))?;
+            let timestamp = timestamp.ok_or_else(|| {
+                error!("timestamp is missing for revocation check!");
+                err_msg!("Identifier timestamp not found for revocation check")
+            })?;
 
-            cred_nonrevoked_interval.is_valid(timestamp)?;
+            debug!("Checking is_valid() for timestamp {}", timestamp);
+
+            // Aqui é onde normalmente falha
+            if let Err(e) = cred_nonrevoked_interval.is_valid(timestamp) {
+                error!("❌ Revocation check failed: {:?}", e);
+                return Err(e.into());
+            }
+
+            debug!("✔️ Revocation interval valid");
+        } else {
+            debug!("Skipping revocation check: no revocation interval");
         }
     }
 
     Ok(())
 }
+
 
 pub(crate) struct CLProofVerifier<'a> {
     proof_verifier: ProofVerifier,
