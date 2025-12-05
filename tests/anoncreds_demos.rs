@@ -288,7 +288,7 @@ fn anoncreds_demo_works_with_revocation_for_single_issuer_single_prover(
         "requested_predicates":{
             "predicate1_referent":{"name":"age","p_type":">=","p_value":18}
         },
-        "non_revoked": {"from": 10, "to": 200}
+        "non_revoked": {"from": 0, "to": 1764937884}
     }))
     .expect("Error creating proof request");
 
